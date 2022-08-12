@@ -2,8 +2,10 @@ from dataclasses import dataclass
 import random
 from typing import Optional
 
+from .util import plant_trigger
 
-@dataclass
+
+@dataclass(eq=True)
 class Player:
     name: str
     cards: list
@@ -20,25 +22,18 @@ def empty_player(name: str = "") -> Player:
     )
 
 
-def is_empty_player(player: Player) -> bool:
-    return (
-        player.name == "" and player.cards == [] and player.general == "" and
-        player.identity == "" and player.equipments == [] and
-        player.hp == 0 and player.max_hp == 0
-    )
-
-
+@plant_trigger("postinit", "err_dup", "err_notfound", "iddist")
 class Game:
     players: list[Player]
+    emperor: Player
+    current: int
 
     def __init__(
-        self, cards: list, generals: dict, equipments: list,
-        players: Optional[list[Player]] = None
+        self, cards: list[str], generals: dict[str, int],
+        equipments: list[str], players: Optional[list[Player]] = None
     ):
-        self.players = [] if not players else players
-        self.cards = cards
-        self.generals = generals
-        self.equipments = equipments
+        self.reset(cards, generals, equipments, players)
+        self.postinit(self)  # type: ignore
 
     def __str__(self):
         return f"""Game(
@@ -51,8 +46,11 @@ class Game:
     def __repr__(self):
         return self.__str__()
 
-    def copy(self):
-        return Game(self.cards, self.generals, self.equipments, self.players)
+    def __next__(self):
+        if self.current == 0:
+            self.current = self.get_player_index(self.emperor.name) - 1
+        self.current = (self.current + 1) % len(self.players)
+        return self.players[self.current]
 
     def reset(
         self, cards: list, generals: dict, equipments: list,
@@ -62,6 +60,8 @@ class Game:
         self.cards = cards
         self.generals = generals
         self.equipments = equipments
+        self.emperor = empty_player()
+        self.current = 0
 
     def get_player(self, name: str) -> Player:
         for player in self.players:
@@ -73,16 +73,21 @@ class Game:
         for i, player in enumerate(self.players):
             if player.name == name:
                 return i
+        self.err_notfound(self)  # type: ignore
         return -1
 
     def add_player(self, player: Player):
         if self.get_player_index(player.name) < 0:
             self.players.append(player)
+        else:
+            self.err_dup(self)  # type: ignore
 
     def remove_player(self, name: str):
         index = self.get_player_index(name)
         if index >= 0:
             self.players.pop(index)
+        else:
+            self.err_notfound(self)  # type: ignore
 
     def _generate_identities(self) -> list[str]:
         """
@@ -110,3 +115,16 @@ class Game:
         ids = self._generate_identities()
         for pl, id in zip(self.players, ids):
             self.apply_identity(pl.name, id)
+            if id == "主公":
+                self.emperor = pl
+        self.iddist(self)  # type: ignore
+
+    def apply_general(self, name: str, general: str):
+        player = self.get_player(name)
+        player.general = general
+        player.hp = player.max_hp = self.generals[general]
+        self.players[self.get_player_index(name)] = player
+        self.generals.pop(general)
+
+    def check_all_generals(self):
+        return all(g.general for g in self.players)
