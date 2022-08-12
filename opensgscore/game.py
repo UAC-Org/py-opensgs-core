@@ -22,8 +22,9 @@ def empty_player(name: str = "") -> Player:
 
 def is_empty_player(player: Player) -> bool:
     return (
-        player.cards == [] and player.general == "" and
-        player.equipments == [] and player.hp == 0 and player.max_hp == 0
+        player.name == "" and player.cards == [] and player.general == "" and
+        player.identity == "" and player.equipments == [] and
+        player.hp == 0 and player.max_hp == 0
     )
 
 
@@ -75,7 +76,7 @@ class Game:
         return -1
 
     def add_player(self, player: Player):
-        if not self.get_player(player.name):
+        if self.get_player_index(player.name) < 0:
             self.players.append(player)
 
     def remove_player(self, name: str):
