@@ -22,7 +22,10 @@ def empty_player(name: str = "") -> Player:
     )
 
 
-@plant_trigger("postinit", "err_dup", "err_notfound", "iddist")
+@plant_trigger(
+    "postinit", "err_dup", "err_notfound", "err_hpoverflow", "iddist",
+    "playerdie"
+)
 class Game:
     players: list[Player]
     emperor: Player
@@ -128,3 +131,20 @@ class Game:
 
     def check_all_generals(self):
         return all(g.general for g in self.players)
+
+    def change_hp(self, name: str, hp: int):
+        player = self.get_player(name)
+        player.hp += hp
+        if player.hp > player.max_hp:
+            player.hp = player.max_hp
+            self.err_hpoverflow(self)  # type: ignore
+        elif player.hp < 0:
+            player.hp = 0
+            self.playerdie(self)  # type: ignore
+        self.players[self.get_player_index(name)] = player
+
+    def incr1(self, name: str):
+        self.change_hp(name, 1)
+
+    def decr1(self, name: str):
+        self.change_hp(name, -1)
