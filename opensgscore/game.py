@@ -24,7 +24,7 @@ def empty_player(name: str = "") -> Player:
 
 @plant_trigger(
     "postinit", "err_dup", "err_notfound", "err_hpoverflow", "iddist",
-    "playerdie"
+    "playerdie", "err_gennavail", "err_mhpmin"
 )
 class Game:
     players: list[Player]
@@ -109,7 +109,6 @@ class Game:
     def apply_identity(self, name: str, identity: str):
         player = self.get_player(name)
         player.identity = identity
-        self.players[self.get_player_index(name)] = player
 
     def apply_all_identities(self):
         """
@@ -124,10 +123,12 @@ class Game:
 
     def apply_general(self, name: str, general: str):
         player = self.get_player(name)
-        player.general = general
-        player.hp = player.max_hp = self.generals[general]
-        self.players[self.get_player_index(name)] = player
-        self.generals.pop(general)
+        if general in self.generals:
+            player.general = general
+            player.hp = player.max_hp = self.generals[general]
+            self.generals.pop(general)
+        else:
+            self.err_gennavail(self)  # type: ignore
 
     def check_all_generals(self):
         return all(g.general for g in self.players)
@@ -141,10 +142,59 @@ class Game:
         elif player.hp < 0:
             player.hp = 0
             self.playerdie(self)  # type: ignore
-        self.players[self.get_player_index(name)] = player
 
-    def incr1(self, name: str):
+    def change_maxhp(self, name: str, d: int):
+        player = self.get_player(name)
+        player.max_hp += d
+        if player.max_hp < 1:
+            player.max_hp = 1
+            self.err_mhpmin(self)  # type: ignore
+        elif player.hp > player.max_hp:
+            player.hp = player.max_hp
+            self.err_hpoverflow(self)  # type: ignore
+
+    def hpincr1(self, name: str):
         self.change_hp(name, 1)
 
-    def decr1(self, name: str):
+    def hpdecr1(self, name: str):
         self.change_hp(name, -1)
+
+    def maxhpincr1(self, name: str):
+        self.change_maxhp(name, 1)
+
+    def maxhpdecr1(self, name: str):
+        self.change_maxhp(name, -1)
+
+    def shuffle_cards(self):
+        random.shuffle(self.cards)
+
+    def draw_cards(self, name: str, n: int = 1, top: bool = False):
+        player = self.get_player(name)
+        cards = self.cards[:n] if not top else self.cards[-n:]
+        self.cards = self.cards[n:] if not top else self.cards[:-n]
+        player.cards.extend(cards)
+        # for c in cards:
+        #     self.cards.remove(c)
+
+    def throw_cards(self, name: str, *cards: str, deprecate: bool = False):
+        player = self.get_player(name)
+        for c in cards:
+            player.cards.remove(c)
+            if not deprecate:
+                self.cards.append(c)
+
+    def equip(self, name: str, equipment: str):
+        player = self.get_player(name)
+        if equipment in player.cards:
+            player.equipments.append(equipment)
+            player.cards.remove(equipment)
+        else:
+            self.err_notfound(self)  # type: ignore
+
+    def unequip(self, name: str, equipment: str):
+        player = self.get_player(name)
+        if equipment in player.equipments:
+            player.equipments.remove(equipment)
+            player.cards.append(equipment)
+        else:
+            self.err_notfound(self)  # type: ignore
