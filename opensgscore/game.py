@@ -36,7 +36,7 @@ class Game:
         equipments: list[str], players: Optional[list[Player]] = None
     ):
         self.reset(cards, generals, equipments, players)
-        self.postinit(self)  # type: ignore
+        self.postinit()  # type: ignore
 
     def __str__(self):
         return f"""Game(
@@ -76,21 +76,21 @@ class Game:
         for i, player in enumerate(self.players):
             if player.name == name:
                 return i
-        self.err_notfound(self)  # type: ignore
+        self.err_notfound()  # type: ignore
         return -1
 
     def add_player(self, player: Player):
         if self.get_player_index(player.name) < 0:
             self.players.append(player)
         else:
-            self.err_dup(self)  # type: ignore
+            self.err_dup()  # type: ignore
 
     def remove_player(self, name: str):
         index = self.get_player_index(name)
         if index >= 0:
             self.players.pop(index)
         else:
-            self.err_notfound(self)  # type: ignore
+            self.err_notfound()  # type: ignore
 
     def _generate_identities(self) -> list[str]:
         """
@@ -119,7 +119,7 @@ class Game:
             self.apply_identity(pl.name, id)
             if id == "主公":
                 self.emperor = pl
-        self.iddist(self)  # type: ignore
+        self.iddist()  # type: ignore
 
     def apply_general(self, name: str, general: str):
         player = self.get_player(name)
@@ -128,7 +128,7 @@ class Game:
             player.hp = player.max_hp = self.generals[general]
             self.generals.pop(general)
         else:
-            self.err_gennavail(self)  # type: ignore
+            self.err_gennavail()  # type: ignore
 
     def check_all_generals(self):
         return all(g.general for g in self.players)
@@ -138,20 +138,20 @@ class Game:
         player.hp += hp
         if player.hp > player.max_hp:
             player.hp = player.max_hp
-            self.err_hpoverflow(self)  # type: ignore
+            self.err_hpoverflow()  # type: ignore
         elif player.hp < 0:
             player.hp = 0
-            self.playerdie(self)  # type: ignore
+            self.playerdie()  # type: ignore
 
     def change_maxhp(self, name: str, d: int):
         player = self.get_player(name)
         player.max_hp += d
         if player.max_hp < 1:
             player.max_hp = 1
-            self.err_mhpmin(self)  # type: ignore
+            self.err_mhpmin()  # type: ignore
         elif player.hp > player.max_hp:
             player.hp = player.max_hp
-            self.err_hpoverflow(self)  # type: ignore
+            self.err_hpoverflow()  # type: ignore
 
     def hpincr1(self, name: str):
         self.change_hp(name, 1)
@@ -189,7 +189,7 @@ class Game:
             player.equipments.append(equipment)
             player.cards.remove(equipment)
         else:
-            self.err_notfound(self)  # type: ignore
+            self.err_notfound()  # type: ignore
 
     def unequip(self, name: str, equipment: str):
         player = self.get_player(name)
@@ -197,4 +197,4 @@ class Game:
             player.equipments.remove(equipment)
             player.cards.append(equipment)
         else:
-            self.err_notfound(self)  # type: ignore
+            self.err_notfound()  # type: ignore
